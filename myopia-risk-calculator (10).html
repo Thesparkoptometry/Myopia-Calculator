@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Myopia Progression Risk Calculator — The Spark Optometry</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --navy: #1a2744; --teal: #2a7d6e; --teal-light: #e8f5f2; --teal-mid: #4aa898;
+  --amber: #e8a245; --red: #c94040; --purple: #7a20a0;
+  --bg: #f7f6f2; --surface: #ffffff; --surface2: #f0eeea;
+  --text: #1a2744; --muted: #6b7494; --light: #9aa0b8;
+  --border: rgba(26,39,68,0.12); --border-strong: rgba(26,39,68,0.22);
+  --shadow: 0 2px 12px rgba(26,39,68,0.08), 0 1px 3px rgba(26,39,68,0.06);
+  --r: 12px; --rs: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:#10141f; --surface:#1a2035; --surface2:#222840;
+    --text:#e8eaf2; --muted:#8890aa; --light:#5c647a;
+    --border:rgba(255,255,255,0.08); --border-strong:rgba(255,255,255,0.15);
+    --shadow:0 2px 12px rgba(0,0,0,0.3);
+    --teal-light:rgba(42,125,110,0.15);
+  }
+}
+body { font-family:'DM Sans',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; font-size:15px; line-height:1.6; }
+
+/* ── Header ── */
+.header { background:var(--navy); color:white; }
+.header-inner { max-width:1100px; margin:0 auto; padding:22px 28px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.header-left .logo { font-family:'DM Serif Display',serif; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:rgba(255,255,255,0.5); margin-bottom:4px; }
+.header-left h1 { font-family:'DM Serif Display',serif; font-size:22px; font-weight:400; color:white; line-height:1.2; }
+.header-left .sub { font-size:12px; color:rgba(255,255,255,0.45); margin-top:2px; }
+.header-right { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.mode-badge { background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); border-radius:20px; padding:5px 12px; font-size:12px; color:rgba(255,255,255,0.65); white-space:nowrap; }
+.mode-toggle { background:white; color:var(--navy); border:none; border-radius:20px; padding:7px 16px; font-family:'DM Sans',sans-serif; font-size:12.5px; font-weight:600; cursor:pointer; transition:all 0.2s; white-space:nowrap; }
+.mode-toggle:hover { background:#e8eaf2; }
+.header-print-btn { background:transparent; color:rgba(255,255,255,0.8); border:1px solid rgba(255,255,255,0.3); border-radius:20px; padding:7px 14px; font-family:'DM Sans',sans-serif; font-size:12px; font-weight:500; cursor:pointer; transition:all 0.2s; white-space:nowrap; display:flex; align-items:center; gap:6px; }
+.header-print-btn:hover { background:rgba(255,255,255,0.12); color:white; border-color:rgba(255,255,255,0.5); }
+
+/* ── Patient summary strip (patient mode) ── */
+.summary-strip { display:none; background:var(--surface); border-bottom:1px solid var(--border); padding:10px 28px; max-width:100%; }
+.summary-strip.show { display:block; }
+.strip-inner { max-width:1100px; margin:0 auto; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.strip-chip { background:var(--surface2); border:1px solid var(--border); border-radius:20px; padding:4px 12px; font-size:12px; color:var(--muted); white-space:nowrap; }
+.strip-chip strong { color:var(--text); font-weight:500; }
+
+/* ── Layout ── */
+.app { max-width:1100px; margin:0 auto; padding:22px 20px 56px; display:grid; grid-template-columns:320px 1fr; gap:18px; align-items:start; }
+.app.patient-mode { grid-template-columns:1fr; }
+@media(max-width:760px) { .app { grid-template-columns:1fr; padding:16px 14px 48px; } .header-inner { padding:16px 14px; } }
+
+/* ── Sidebar ── */
+.sidebar { display:flex; flex-direction:column; gap:8px; }
+.app.patient-mode .sidebar { display:none; }
+
+/* ── Cards ── */
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); box-shadow:var(--shadow); padding:12px 14px; }
+.card-title { font-family:'DM Serif Display',serif; font-size:13px; font-weight:400; margin-bottom:9px; padding-bottom:7px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:6px; letter-spacing:0.01em; }
+.dot { width:6px; height:6px; border-radius:50%; background:var(--teal); flex-shrink:0; display:inline-block; }
+
+/* ── Form ── */
+.field { margin-bottom:7px; }
+.field:last-child { margin-bottom:0; }
+.field-hint { font-size:10px; color:var(--light); margin-top:2px; font-style:italic; }
+label { display:block; font-size:10px; font-weight:500; color:var(--muted); letter-spacing:0.05em; text-transform:uppercase; margin-bottom:3px; }
+label .unit { font-weight:400; text-transform:none; letter-spacing:0; color:var(--light); }
+label .worse-eye { font-weight:400; text-transform:none; letter-spacing:0; color:var(--amber); font-style:italic; }
+input[type="number"], select { width:100%; padding:5px 9px; background:var(--surface2); border:1px solid var(--border-strong); border-radius:var(--rs); font-family:'DM Sans',sans-serif; font-size:13px; color:var(--text); appearance:none; -webkit-appearance:none; transition:border-color 0.15s,box-shadow 0.15s; outline:none; }
+input[type="number"]:focus, select:focus { border-color:var(--teal); box-shadow:0 0 0 2px rgba(42,125,110,0.15); }
+select { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7494' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 9px center; padding-right:26px; }
+.field-row { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+.field-row-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:7px; }
+.toggle-group { display:flex; gap:4px; flex-wrap:wrap; }
+.toggle-group label { text-transform:none; letter-spacing:0; font-size:11.5px; font-weight:400; color:var(--text); background:var(--surface2); border:1px solid var(--border-strong); border-radius:20px; padding:3px 9px; cursor:pointer; margin:0; transition:all 0.15s; user-select:none; }
+.toggle-group input[type="checkbox"] { display:none; }
+.toggle-group input[type="checkbox"]:checked + label { background:var(--navy); border-color:var(--navy); color:white; }
+
+/* ── Status banner ── */
+.status-banner { border-radius:var(--rs); padding:5px 10px; font-size:11.5px; font-weight:500; margin-bottom:8px; display:none; align-items:center; gap:6px; }
+.status-banner.show { display:flex; }
+.status-banner.pre { background:#fff8e8; color:#7a5000; border:1px solid #f0d080; }
+.status-banner.myo { background:var(--teal-light); color:var(--teal); border:1px solid rgba(42,125,110,0.25); }
+@media(prefers-color-scheme:dark) {
+  .status-banner.pre { background:rgba(232,162,69,0.12); color:#e8c070; border-color:rgba(232,162,69,0.25); }
+  .status-banner.myo { color:#4aa898; border-color:rgba(42,125,110,0.3); }
+}
+
+/* ── BV note ── */
+.bv-note { display:none; margin-top:7px; padding:7px 10px; background:var(--surface2); border-left:3px solid var(--teal); border-radius:0 var(--rs) var(--rs) 0; font-size:11px; color:var(--muted); line-height:1.55; }
+.bv-note.show { display:block; }
+.bv-note strong { color:var(--text); }
+
+/* ── Int note ── */
+.int-note { display:none; margin-top:6px; padding:6px 9px; background:var(--surface2); border-left:3px solid var(--amber); border-radius:0 var(--rs) var(--rs) 0; font-size:11px; color:var(--muted); line-height:1.5; }
+
+/* ── Buttons ── */
+.btn-row { display:flex; gap:7px; flex-wrap:wrap; }
+.btn { padding:7px 14px; border-radius:var(--rs); font-family:'DM Sans',sans-serif; font-size:12.5px; font-weight:500; cursor:pointer; transition:all 0.15s; border:none; display:flex; align-items:center; gap:5px; }
+.btn-primary { background:var(--navy); color:white; }
+.btn-primary:hover { background:#243560; }
+.btn-secondary { background:var(--surface2); color:var(--text); border:1px solid var(--border-strong); }
+.btn-secondary:hover { background:var(--border); }
+
+/* ── Results column ── */
+.results-col { display:flex; flex-direction:column; gap:16px; }
+
+/* ── Risk meter ── */
+.risk-meter { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); box-shadow:var(--shadow); padding:20px 22px; }
+.risk-label { font-size:10.5px; font-weight:500; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:8px; }
+.risk-score-row { display:flex; align-items:baseline; gap:10px; margin-bottom:8px; }
+.risk-score { font-family:'DM Serif Display',serif; font-size:46px; line-height:1; color:var(--navy); transition:color 0.3s; }
+.risk-tier { font-size:13.5px; font-weight:600; padding:3px 10px; border-radius:12px; transition:all 0.3s; }
+.tier-low  { background:#e8f5f0; color:#1d7a55; }
+.tier-mod  { background:#fff3e0; color:#a05c00; }
+.tier-high { background:#fce8e8; color:#a02020; }
+.tier-vhigh{ background:#f0e0ff; color:#6a20a0; }
+.risk-plain { font-size:16px; font-weight:500; color:var(--text); line-height:1.4; display:none; margin-bottom:8px; }
+.risk-bar-track { height:7px; background:var(--surface2); border-radius:4px; overflow:hidden; margin-bottom:5px; }
+.risk-bar-fill { height:100%; border-radius:4px; transition:width 0.4s ease,background 0.4s ease; }
+.risk-bar-labels { display:flex; justify-content:space-between; font-size:10px; color:var(--light); }
+.risk-factors-list { margin-top:10px; padding-top:10px; border-top:1px solid var(--border); font-size:12px; color:var(--muted); line-height:1.85; }
+.risk-factor-item { display:flex; align-items:center; gap:6px; }
+.pip { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+.pip-high { background:var(--red); } .pip-mod { background:var(--amber); } .pip-low { background:var(--teal); }
+
+/* ── Onset box ── */
+.onset-box { background:#fff8e8; border:1px solid #f0d080; border-radius:var(--rs); padding:11px 13px; margin-top:12px; display:none; }
+.onset-box.show { display:block; }
+.onset-box-label { font-size:10.5px; font-weight:500; color:#7a5000; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:3px; }
+.onset-box-val { font-family:'DM Serif Display',serif; font-size:21px; color:#5a3800; }
+.onset-box-sub { font-size:11.5px; color:#8a6020; margin-top:2px; }
+@media(prefers-color-scheme:dark) {
+  .onset-box { background:rgba(232,162,69,0.1); border-color:rgba(232,162,69,0.25); }
+  .onset-box-label { color:#c8a050; } .onset-box-val { color:#e8c070; } .onset-box-sub { color:#a08040; }
+}
+
+/* ── Plain language outcome (patient mode) ── */
+.plain-outcome { background:var(--surface2); border-radius:var(--rs); padding:12px 14px; margin-top:12px; font-size:13.5px; color:var(--text); line-height:1.65; display:none; }
+.plain-outcome.show { display:block; }
+
+/* ── Chart ── */
+.chart-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); box-shadow:var(--shadow); padding:20px; }
+.chart-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px; flex-wrap:wrap; gap:8px; }
+.chart-title { font-family:'DM Serif Display',serif; font-size:16px; font-weight:400; }
+.chart-legend { display:flex; gap:12px; font-size:11px; color:var(--muted); flex-wrap:wrap; align-items:center; }
+.legend-item { display:flex; align-items:center; gap:4px; }
+.legend-swatch { width:20px; height:3px; border-radius:2px; }
+.legend-dash { width:20px; height:0; border-top:2px dashed; }
+.chart-wrapper { position:relative; height:300px; width:100%; }
+
+/* ── Table ── */
+.table-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); box-shadow:var(--shadow); padding:20px; }
+.proj-table { width:100%; font-size:12.5px; border-collapse:collapse; margin-top:14px; }
+.proj-table th { text-align:left; font-size:10.5px; font-weight:500; color:var(--muted); letter-spacing:0.06em; text-transform:uppercase; padding:7px 9px; border-bottom:1px solid var(--border); }
+.proj-table td { padding:7px 9px; border-bottom:1px solid var(--border); color:var(--text); }
+.proj-table tr:last-child td { border-bottom:none; }
+.proj-table .current-row td { background:var(--teal-light); font-weight:500; }
+.proj-table .onset-row td { background:#fff8e8; }
+@media(prefers-color-scheme:dark) { .proj-table .onset-row td { background:rgba(232,162,69,0.08); } }
+.proj-table .rx-val { font-variant-numeric:tabular-nums; font-weight:500; }
+.risk-pill { font-size:10.5px; padding:2px 7px; border-radius:10px; display:inline-block; }
+
+/* ── Interventions reference ── */
+.int-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(138px,1fr)); gap:7px; margin-top:10px; }
+.int-card { background:var(--surface2); border:1px solid var(--border); border-radius:var(--rs); padding:9px 11px; font-size:12px; }
+.int-card.extrapolated { border-style:dashed; }
+.int-name { font-weight:500; color:var(--text); margin-bottom:1px; }
+.int-effect { color:var(--teal); font-weight:600; font-size:12.5px; }
+.int-sub { color:var(--muted); font-size:10.5px; margin-top:1px; }
+.int-dagger { color:var(--amber); }
+
+/* ── What we can do (patient mode) ── */
+.patient-interventions { display:none; }
+.patient-interventions.show { display:block; }
+.clinical-interventions { display:block; }
+.app.patient-mode .patient-interventions { display:block; }
+.app.patient-mode .clinical-interventions { display:none; }
+
+.what-we-can-do { background:var(--surface2); border-radius:var(--rs); padding:14px 16px; margin-top:12px; }
+.wcd-item { display:flex; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); }
+.wcd-item:last-child { border-bottom:none; }
+.wcd-icon { width:28px; height:28px; border-radius:50%; background:var(--teal-light); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:13px; color:var(--teal); font-weight:600; }
+.wcd-text { font-size:13px; color:var(--text); line-height:1.55; }
+.wcd-text strong { font-weight:500; display:block; margin-bottom:1px; }
+
+/* ── Disclaimer ── */
+.disclaimer { font-size:11px; color:var(--muted); background:var(--surface2); border-left:3px solid var(--teal); border-radius:0 var(--rs) var(--rs) 0; padding:9px 13px; line-height:1.65; }
+
+/* ── Sticky sidebar ── */
+@media(min-width:761px) { .sidebar { position:sticky; top:16px; max-height:calc(100vh - 32px); overflow-y:auto; scrollbar-width:thin; } }
+
+/* ── Print ── */
+@media print {
+  @page { margin:0.35in; size:portrait; }
+  * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+  html, body { background:white !important; }
+  body > *:not(.print-page) { display:none !important; }
+  .print-page { display:block !important; background:white !important; }
+}
+/* Print page hidden on screen */
+.print-page { display:none; font-family:'DM Sans',system-ui,sans-serif; font-size:10px; color:#1a2744; line-height:1.4; background:white; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="logo">The Spark Optometry</div>
+      <h1>Myopia Progression Risk Calculator</h1>
+      <div class="sub">Evidence-based pediatric risk stratification &amp; trajectory projection</div>
+    </div>
+    <div class="header-right">
+      <div class="mode-badge no-print" id="mode-badge">Clinical view</div>
+      <button class="mode-toggle no-print" id="mode-toggle-btn" onclick="toggleMode()">Switch to patient summary</button>
+      <button class="header-print-btn no-print" id="print-btn">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><rect x="2" y="9" width="10" height="4" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M4 9V2h6v7" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><rect x="4" y="10.5" width="6" height="1" rx="0.5" fill="currentColor"/><circle cx="10.5" cy="6.5" r="0.8" fill="currentColor"/></svg>
+        Print / Save PDF
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Patient summary strip -->
+<div class="summary-strip" id="summary-strip">
+  <div class="strip-inner" id="strip-inner"></div>
+</div>
+
+<div class="app" id="app">
+
+  <!-- ── SIDEBAR ── -->
+  <div class="sidebar">
+
+    <div class="card">
+      <div class="card-title"><span class="dot"></span> Patient Information</div>
+      <div id="status-banner" class="status-banner"></div>
+      <div class="field-row">
+        <div class="field">
+          <label>Age <span class="unit">(years)</span></label>
+          <input type="number" id="age" min="4" max="18" value="8" step="1" oninput="calc()">
+        </div>
+        <div class="field">
+          <label>Sex</label>
+          <select id="sex" onchange="calc()">
+            <option value="F">Female</option>
+            <option value="M">Male</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Ethnicity / Ancestry</label>
+        <select id="ethnicity" onchange="calc()">
+          <option value="east_asian">East Asian (Chinese, Japanese, Korean, Vietnamese)</option>
+          <option value="south_asian">South Asian (Indian, Pakistani, Sri Lankan)</option>
+          <option value="hispanic">Hispanic / Latino</option>
+          <option value="white">White / Caucasian</option>
+          <option value="black">Black / African</option>
+          <option value="mixed">Mixed / Other</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="dot"></span> Refractive Data</div>
+      <div class="field-row">
+        <div class="field">
+          <label>Current Rx <span class="unit">(sphere, D)</span></label>
+          <input type="number" id="rx" min="-20" max="6" value="" step="0.25" placeholder="e.g. +0.75 or −1.25" oninput="calc()">
+          <div class="field-hint">Worse eye <span style="color:var(--amber)">(higher minus)</span></div>
+        </div>
+        <div class="field">
+          <label>Axial Length <span class="unit">(mm)</span></label>
+          <input type="number" id="al" min="20" max="32" value="" step="0.01" placeholder="optional" oninput="calc()">
+          <div class="field-hint">Worse eye <span style="color:var(--amber)">(longer AL)</span></div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Age of Onset <span class="unit">(yrs)</span></label>
+          <input type="number" id="onset" min="3" max="18" value="" step="1" placeholder="if myopic" oninput="calc()">
+        </div>
+        <div class="field">
+          <label>Annual Progression <span class="unit">(D/yr)</span></label>
+          <input type="number" id="prog" min="0" max="4" value="" step="0.25" placeholder="if known" oninput="calc()">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="dot"></span> Current Intervention</div>
+      <div class="field">
+        <select id="intervention" onchange="calc()">
+          <option value="none">No intervention (single vision only)</option>
+          <option value="ortho_k">Orthokeratology</option>
+          <option value="misight">MiSight 1 day contact lens</option>
+          <option value="atropine_01">Atropine 0.01%</option>
+          <option value="atropine_05">Atropine 0.05%</option>
+          <option value="stellest">Stellest / DIMS spectacle lens</option>
+          <option value="mf_soft">Multifocal soft CL</option>
+          <option value="combo">Ortho-K + low-dose atropine</option>
+          <option value="stellest_atro">Stellest + low-dose atropine †</option>
+        </select>
+        <div class="int-note" id="int-note">
+          For pre-myopic patients, the intervention curve shows efficacy beginning at the predicted onset age — not the current age.
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="dot"></span> Family History</div>
+      <div class="field-row">
+        <div class="field">
+          <label>Parental Myopia</label>
+          <select id="parents" onchange="calc()">
+            <option value="0">Neither myopic</option>
+            <option value="1">One parent</option>
+            <option value="2">Both parents</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Parental Rx <span class="unit">(D)</span></label>
+          <input type="number" id="parent_rx" min="-20" max="0" value="" step="0.25" placeholder="e.g. −4.00" oninput="calc()">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="dot"></span> Lifestyle &amp; Environment</div>
+      <div class="field-row">
+        <div class="field">
+          <label>Outdoors <span class="unit">(hrs/day)</span></label>
+          <select id="outdoor" onchange="calc()">
+            <option value="0">&lt;1 hr</option>
+            <option value="1">1–2 hrs</option>
+            <option value="2" selected>2+ hrs</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Near work / screens <span class="unit">(hrs/day)</span></label>
+          <select id="nearwork" onchange="calc()">
+            <option value="0">&lt;2 hrs</option>
+            <option value="1" selected>2–4 hrs</option>
+            <option value="2">4+ hrs</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Additional risk factors</label>
+        <div class="toggle-group">
+          <input type="checkbox" id="rf_premature" onchange="calc()"><label for="rf_premature">Premature birth</label>
+          <input type="checkbox" id="rf_urban" onchange="calc()"><label for="rf_urban">Urban environment</label>
+          <input type="checkbox" id="rf_asian_school" onchange="calc()"><label for="rf_asian_school">High academic load</label>
+          <input type="checkbox" id="rf_atopy" onchange="calc()"><label for="rf_atopy">Atopy / allergies</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="dot"></span> Binocular Vision Status</div>
+      <div class="field-row">
+        <div class="field">
+          <label>Accommodative lag</label>
+          <select id="bv_aclag" onchange="calc()">
+            <option value="0">Within normal limits</option>
+            <option value="1">Mild (0.75–1.25D)</option>
+            <option value="2">Significant (&gt;1.25D)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Near phoria</label>
+          <select id="bv_phoria" onchange="calc()">
+            <option value="ortho">Orthophoric</option>
+            <option value="exo">Exophoria</option>
+            <option value="eso">Esophoria</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Additional BV findings</label>
+        <div class="toggle-group">
+          <input type="checkbox" id="bv_ai" onchange="calc()"><label for="bv_ai">Acc. insufficiency</label>
+          <input type="checkbox" id="bv_ci" onchange="calc()"><label for="bv_ci">Conv. insufficiency</label>
+        </div>
+      </div>
+      <div class="bv-note" id="bv-note"></div>
+    </div>
+
+    <div class="btn-row no-print">
+      <button class="btn btn-secondary" onclick="resetForm()">Reset</button>
+    </div>
+
+  </div><!-- /sidebar -->
+
+  <!-- ── RESULTS ── -->
+  <div class="results-col">
+
+    <!-- Risk meter -->
+    <div class="risk-meter">
+      <div class="risk-label" id="risk-label-text">Progression risk score</div>
+      <div class="risk-score-row">
+        <div class="risk-score" id="risk-score-num">—</div>
+        <div class="risk-tier tier-mod" id="risk-tier-badge">Moderate</div>
+      </div>
+      <div class="risk-plain" id="risk-plain"></div>
+      <div class="risk-bar-track"><div class="risk-bar-fill" id="risk-bar" style="width:0%;background:#e8a245;"></div></div>
+      <div class="risk-bar-labels"><span>Low</span><span>Moderate</span><span>High</span><span>Very High</span></div>
+      <div class="onset-box" id="onset-box">
+        <div class="onset-box-label">Estimated age of myopia onset</div>
+        <div class="onset-box-val" id="onset-box-val">—</div>
+        <div class="onset-box-sub" id="onset-box-sub"></div>
+      </div>
+      <div class="plain-outcome" id="plain-outcome"></div>
+      <div class="risk-factors-list" id="risk-factors-list"></div>
+    </div>
+
+    <!-- Chart -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title" id="chart-title">Estimated Rx progression</div>
+        <div class="chart-legend">
+          <div class="legend-item"><div class="legend-swatch" style="background:#2a7d6e;"></div><span>Untreated</span></div>
+          <div class="legend-item" id="legend-treated-wrap" style="display:none;"><div class="legend-swatch" style="background:#e8a245;"></div><span id="legend-treated-label">With intervention</span></div>
+          <div class="legend-item" id="legend-onset-wrap" style="display:none;"><div class="legend-dash" style="border-color:#e8a245;"></div><span>Est. onset</span></div>
+          <div class="legend-item"><div class="legend-dash" style="border-color:#c94040;"></div><span>High myopia (−6D)</span></div>
+        </div>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="myChart" role="img" aria-label="Myopia progression chart showing estimated prescription by age"></canvas>
+      </div>
+    </div>
+
+    <!-- Projection table -->
+    <div class="table-card">
+      <div class="card-title"><span class="dot"></span> Projection table <span style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:400;color:var(--muted);margin-left:6px;">* AL estimated from Rx (1D ≈ 0.35mm); worse eye</span></div>
+      <table class="proj-table">
+        <thead>
+          <tr>
+            <th>Age</th>
+            <th>Est. Rx — untreated</th>
+            <th id="th-treated">Est. Rx — with intervention</th>
+            <th>Est. axial length</th>
+            <th>Risk level</th>
+          </tr>
+        </thead>
+        <tbody id="proj-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Interventions reference -->
+    <div class="chart-card">
+      <div class="card-title"><span class="dot"></span> Intervention efficacy reference</div>
+
+      <!-- Clinical grid -->
+      <div class="clinical-interventions">
+        <div class="int-grid">
+          <div class="int-card"><div class="int-name">Ortho-K</div><div class="int-effect">~45–55% reduction</div><div class="int-sub">Axial length primary endpoint</div></div>
+          <div class="int-card"><div class="int-name">MiSight 1 day</div><div class="int-effect">~50–60% reduction</div><div class="int-sub">3-year BOZM trial data</div></div>
+          <div class="int-card"><div class="int-name">Atropine 0.05%</div><div class="int-effect">~45–55% reduction</div><div class="int-sub">ATOM2 / LAMP data</div></div>
+          <div class="int-card"><div class="int-name">Atropine 0.01%</div><div class="int-effect">~15–25% reduction</div><div class="int-sub">Lower rebound risk</div></div>
+          <div class="int-card"><div class="int-name">Stellest / DIMS</div><div class="int-effect">~50–65% reduction</div><div class="int-sub">Bao et al. 2022 axial data</div></div>
+          <div class="int-card"><div class="int-name">MF Soft CL</div><div class="int-effect">~35–45% reduction</div><div class="int-sub">BLINK study</div></div>
+          <div class="int-card"><div class="int-name">Ortho-K + Atro</div><div class="int-effect">~65–75% reduction</div><div class="int-sub">Combination therapy</div></div>
+          <div class="int-card extrapolated"><div class="int-name">Stellest + Atro <span class="int-dagger">†</span></div><div class="int-effect">~60–70% reduction</div><div class="int-sub">† Extrapolated; no dedicated RCT as of 2025</div></div>
+          <div class="int-card"><div class="int-name">Outdoor time</div><div class="int-effect">~50% onset risk ↓</div><div class="int-sub">2+ hrs/day, prevention</div></div>
+        </div>
+        <div class="disclaimer" style="margin-top:12px;">
+          <strong>Efficacy ranges</strong> reflect within-study variance across published trials. Cross-trial comparisons are not valid — studies differ in population, age range, follow-up duration, and primary endpoints. Ranges use midpoints for curve calculations. <strong>† Stellest + atropine:</strong> extrapolated from Stellest monotherapy data and combination-therapy analogy; no dedicated RCT available as of 2025. Sources: COMET, ATOM2, LAMP, BOZM, MiSight 3-year extension, Bao et al. 2022, BLINK, Rosner-Grosvenor, SCORM. Pre-myopic onset predictions based on CLEERE / Zadnik et al. methodology. AL estimated from Rx (1D ≈ 0.35mm); worse eye only. Does not replace clinical judgment.
+        </div>
+      </div>
+
+      <!-- Patient mode: what we can do -->
+      <div class="patient-interventions">
+        <div class="what-we-can-do" id="what-we-can-do"></div>
+        <div class="disclaimer" style="margin-top:12px;">
+          These projections are estimates based on population data and your child's individual risk profile. Actual progression varies. All options should be discussed with your optometrist.
+        </div>
+      </div>
+
+    </div>
+
+    <div class="disclaimer" style="border-left-color:var(--amber);">
+      Printed <span id="print-date"></span> · The Spark Optometry · thesparkoptometry.com · For internal clinical use only
+    </div>
+
+  </div><!-- /results-col -->
+</div><!-- /app -->
+
+<script>
+// ── Constants ─────────────────────────────────────────────────────────────
+const INT_EFFECT = {
+  none:0, ortho_k:0.50, misight:0.55, atropine_01:0.20, atropine_05:0.50,
+  stellest:0.575, mf_soft:0.40, combo:0.70, stellest_atro:0.65
+};
+const INT_LABELS = {
+  none:'No intervention', ortho_k:'Orthokeratology', misight:'MiSight 1 day',
+  atropine_01:'Atropine 0.01%', atropine_05:'Atropine 0.05%', stellest:'Stellest/DIMS',
+  mf_soft:'MF soft CL', combo:'Ortho-K + atropine', stellest_atro:'Stellest + atropine †'
+};
+const INT_PLAIN = {
+  none:'No myopia control intervention is currently in place.',
+  ortho_k:'Orthokeratology (overnight contact lenses that reshape the cornea).',
+  misight:'MiSight 1 day (daily contact lenses with a myopia-slowing design).',
+  atropine_01:'Low-dose atropine 0.01% eye drops.',
+  atropine_05:'Atropine 0.05% eye drops.',
+  stellest:'Stellest spectacle lenses (DIMS technology).',
+  mf_soft:'Multifocal soft contact lenses.',
+  combo:'Orthokeratology combined with low-dose atropine drops.',
+  stellest_atro:'Stellest spectacle lenses combined with low-dose atropine drops.'
+};
+const ETH_MULT = {
+  east_asian:1.55, south_asian:1.20, hispanic:1.10, white:1.00, black:0.75, mixed:1.05
+};
+const ETH_PLAIN = {
+  east_asian:'East Asian', south_asian:'South Asian', hispanic:'Hispanic/Latino',
+  white:'Caucasian', black:'African', mixed:'Mixed/Other'
+};
+
+// ── Mode ──────────────────────────────────────────────────────────────────
+let patientMode = false;
+function toggleMode() {
+  patientMode = !patientMode;
+  const app = document.getElementById('app');
+  const btn = document.getElementById('mode-toggle-btn');
+  const badge = document.getElementById('mode-badge');
+  app.classList.toggle('patient-mode', patientMode);
+  btn.textContent = patientMode ? 'Switch to clinical view' : 'Switch to patient summary';
+  badge.textContent = patientMode ? 'Patient summary' : 'Clinical view';
+  document.getElementById('summary-strip').classList.toggle('show', patientMode);
+  updatePatientModeUI();
+}
+function buildPrintPage() {
+  const inputs = window._lastInputs;
+  const proj   = window._lastProj;
+  const score  = window._lastScore;
+  if (!inputs || !proj) return;
+
+  const { age, rx, ethnicity, parents, intervention, isPreMyope, predictedOnset } = inputs;
+  const intEffect = INT_EFFECT[intervention];
+
+  // Header right
+  document.getElementById('pp-header-right').innerHTML =
+    `Printed ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}<br>For clinical use only`;
+
+  // Strip chips
+  const rxDisp = rx !== null ? (rx >= 0 ? `+${rx}D` : `${rx}D`) : '—';
+  const parentMap = {'0':'No parental myopia','1':'One myopic parent','2':'Both parents myopic'};
+  document.getElementById('pp-strip').innerHTML = [
+    `<div class="pp-chip">Age <strong>${age}</strong></div>`,
+    `<div class="pp-chip">Rx <strong>${rxDisp}</strong> (worse eye)</div>`,
+    `<div class="pp-chip">Ethnicity <strong>${ETH_PLAIN[ethnicity]}</strong></div>`,
+    `<div class="pp-chip"><strong>${parentMap[parents]}</strong></div>`,
+    `<div class="pp-chip">Intervention <strong>${INT_LABELS[intervention].replace(' †','')}</strong></div>`,
+  ].join('');
+
+  // Capture chart as image from canvas with white background
+  const chartWrap = document.getElementById('pp-chart-wrap');
+  if (chartWrap) {
+    const canvas = document.getElementById('myChart');
+    if (canvas) {
+      // Draw white background onto a temp canvas, then composite the chart on top
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCtx.fillStyle = '#ffffff';
+      tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+      tempCtx.drawImage(canvas, 0, 0);
+      const img = document.createElement('img');
+      img.src = tempCanvas.toDataURL('image/png');
+      img.style.cssText = 'width:100%;height:180px;object-fit:contain;border-radius:4px;';
+      chartWrap.innerHTML = '';
+      chartWrap.appendChild(img);
+    }
+  }
+
+  // Risk panel
+  let tierWord, tierStyle, barColor;
+  if      (score < 25) { tierWord='Low Risk';       tierStyle='background:#e8f5f0;color:#1d7a55;'; barColor='#2a7d6e'; }
+  else if (score < 50) { tierWord='Moderate Risk';  tierStyle='background:#fff3e0;color:#a05c00;'; barColor='#e8a245'; }
+  else if (score < 75) { tierWord='High Risk';      tierStyle='background:#fce8e8;color:#a02020;'; barColor='#c94040'; }
+  else                 { tierWord='Very High Risk'; tierStyle='background:#f0e0ff;color:#6a20a0;'; barColor='#7a20a0'; }
+
+  const rxAt18U = proj.untreated[proj.ages.indexOf(18)];
+  const rxAt18T = proj.treated[proj.ages.indexOf(18)];
+  const rxAt18UStr = rxAt18U !== undefined ? (rxAt18U >= 0 ? `+${rxAt18U.toFixed(2)}D` : `${rxAt18U.toFixed(2)}D`) : '';
+  const rxAt18TStr = rxAt18T !== undefined ? (rxAt18T >= 0 ? `+${rxAt18T.toFixed(2)}D` : `${rxAt18T.toFixed(2)}D`) : '';
+
+  const onsetHTML = (isPreMyope && predictedOnset) ? `
+    <div class="pp-onset">
+      <div class="pp-onset-label">Estimated myopia onset</div>
+      <div class="pp-onset-val">Age ${predictedOnset}</div>
+      <div class="pp-onset-sub">${predictedOnset - age} year${predictedOnset-age!==1?'s':''} from now</div>
+    </div>` : '';
+
+  const plainText = isPreMyope
+    ? `Based on current measurements, this patient has a <strong>${tierWord.toLowerCase()}</strong> of developing myopia${predictedOnset ? ` around age ${predictedOnset}` : ''}. Without intervention, estimated Rx at age 18: <strong>${rxAt18UStr}</strong>.${intEffect>0?' With '+INT_LABELS[intervention].replace(' †','')+': estimated <strong>'+rxAt18TStr+'</strong> at age 18.':''}`
+    : `This patient has a <strong>${tierWord.toLowerCase()}</strong> of significant myopia progression. Estimated Rx at age 18 without intervention: <strong>${rxAt18UStr}</strong>.${intEffect>0?' With '+INT_LABELS[intervention].replace(' †','')+': estimated <strong>'+rxAt18TStr+'</strong>.':''}`;
+
+  document.getElementById('pp-risk').innerHTML = `
+    <div class="pp-risk-label">${isPreMyope ? 'Onset risk score' : 'Progression risk score'}</div>
+    <div class="pp-risk-score">${score}</div>
+    <div class="pp-risk-tier" style="${tierStyle}">${tierWord}</div>
+    <div class="pp-bar-track"><div class="pp-bar-fill" style="width:${score}%;background:${barColor};"></div></div>
+    <div class="pp-bar-labels"><span>Low</span><span>Moderate</span><span>High</span><span>Very High</span></div>
+    ${onsetHTML}
+    <div class="pp-plain">${plainText}</div>`;
+
+  // Table
+  const tbody = document.getElementById('pp-tbody');
+  tbody.innerHTML = '';
+  proj.ages.forEach((a, i) => {
+    const rxU = proj.untreated[i], rxT = proj.treated[i];
+    const alEst = rxU < 0 ? (24.2 + Math.abs(rxU)*0.35).toFixed(2)+'mm' : '—';
+    let riskLabel='Pre-myopic', riskStyle='background:#fff8e8;color:#7a5000;';
+    if (rxU<=-6)      { riskLabel='High myopia'; riskStyle='background:#f0e0ff;color:#6a20a0;'; }
+    else if (rxU<=-3) { riskLabel='Moderate';    riskStyle='background:#fff3e0;color:#a05c00;'; }
+    else if (rxU<=-1) { riskLabel='Low myopia';  riskStyle='background:#fce8e8;color:#a02020;'; }
+    else if (rxU<=0)  { riskLabel='Emmetrope';   riskStyle='background:#e8f5f0;color:#1d7a55;'; }
+    const rxUStr = rxU>=0 ? `+${rxU.toFixed(2)}D` : `${rxU.toFixed(2)}D`;
+    const rxTStr = intEffect>0 && Math.abs(rxT-rxU)>0.01 ? (rxT>=0?`+${rxT.toFixed(2)}D`:`${rxT.toFixed(2)}D`) : '—';
+    const tr = document.createElement('tr');
+    if (a===age && !isPreMyope) tr.className='pp-current';
+    tr.innerHTML = `<td>${a}</td><td>${rxUStr}</td><td>${rxTStr}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  // What we can do
+  const wcdItems = [];
+  const outdoor = parseInt(document.getElementById('outdoor').value);
+  if (outdoor < 2) wcdItems.push({ title:'Increase outdoor time', body:'Aim for 2+ hours/day outdoors. One of the most consistently protective factors against myopia onset and progression.' });
+  if (intEffect > 0) {
+    wcdItems.push({ title: INT_LABELS[intervention].replace(' †',''), body: INT_PLAIN[intervention] + ' Studies suggest ~' + Math.round(intEffect*100) + '% slowing of progression vs. no treatment.' });
+  } else {
+    wcdItems.push({ title:'Consider myopia control', body:'Several treatments have been shown to significantly slow myopia progression. Ask your optometrist which is best suited.' });
+  }
+  wcdItems.push({ title:'Regular monitoring', body:'Every 6 months to track axial length and prescription, and adjust treatment as needed.' });
+
+  document.getElementById('pp-wcd').innerHTML = `
+    <div class="pp-section-title" style="font-size:9px;font-weight:500;color:#6b7494;text-transform:uppercase;letter-spacing:0.06em;border-bottom:1px solid #f0eeea;padding-bottom:5px;margin-bottom:6px;">What we can do</div>
+    <div class="pp-wcd-grid">${wcdItems.map(w=>`<div class="pp-wcd-item"><div class="pp-wcd-title">${w.title}</div><div class="pp-wcd-body">${w.body}</div></div>`).join('')}</div>`;
+
+  // Footer + disclaimer
+  document.getElementById('pp-footer').innerHTML =
+    `<span>The Spark Optometry · thesparkoptometry.com</span><span>For internal clinical use only</span>`;
+  document.getElementById('pp-disclaimer').textContent =
+    'Projections are estimates based on population data. Actual progression varies. Pre-myopic onset predictions use CLEERE/Zadnik methodology. AL estimated from Rx (1D ≈ 0.35mm). Cross-trial efficacy comparisons are not valid. Does not replace clinical judgment.';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('print-btn');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      buildPrintPage();
+      setTimeout(() => { try { window.print(); } catch(e) {} }, 100);
+    });
+  }
+});
+
+// ── Progression model ─────────────────────────────────────────────────────
+function baseProgRate(age) {
+  if (age < 7)  return 1.10;
+  if (age < 9)  return 0.90;
+  if (age < 11) return 0.75;
+  if (age < 13) return 0.65;
+  if (age < 15) return 0.45;
+  if (age < 17) return 0.25;
+  return 0.10;
+}
+
+function predictOnset(age, rx, al, ethnicity, parents, outdoor) {
+  const em = ETH_MULT[ethnicity];
+  let plusReserve = (rx !== null) ? rx : 0.75;
+  let annualLoss = 0.18 * em;
+  if (parents == 2) annualLoss *= 1.30;
+  else if (parents == 1) annualLoss *= 1.15;
+  if (outdoor == 0) annualLoss *= 1.20;
+  else if (outdoor == 2) annualLoss *= 0.85;
+  if (al !== null) {
+    const normAL = 22.0 + (age - 5) * 0.1;
+    const excess = al - normAL;
+    if (excess > 1.0) annualLoss *= 1.25;
+    else if (excess > 0.5) annualLoss *= 1.12;
+  }
+  let simRx = plusReserve, simAge = age;
+  while (simRx > 0 && simAge < 25) { simRx -= annualLoss; simAge++; }
+  return simAge >= 25 ? null : Math.round(simAge);
+}
+
+// ── Risk scoring ──────────────────────────────────────────────────────────
+function computeRisk(inputs) {
+  let score = 0;
+  const factors = [];
+  const { age, rx, al, onset, prog, ethnicity, parents, parent_rx,
+          outdoor, nearwork, isPreMyope, predictedOnset } = inputs;
+
+  if (isPreMyope) {
+    if (rx !== null && rx <= 0.50) { score += 20; factors.push({ label:`Low hyperopic buffer (${rx >= 0 ? '+' : ''}${rx}D)`, pip:'high', pts:20 }); }
+    else if (rx !== null && rx <= 1.00) { score += 10; factors.push({ label:`Moderate hyperopic reserve (+${rx}D)`, pip:'mod', pts:10 }); }
+    if (predictedOnset !== null) {
+      const yrs = predictedOnset - age;
+      if (yrs <= 1)      { score += 20; factors.push({ label:'Onset predicted within 1 year',  pip:'high', pts:20 }); }
+      else if (yrs <= 2) { score += 12; factors.push({ label:'Onset predicted within 2 years', pip:'mod',  pts:12 }); }
+      else if (yrs <= 3) { score += 6;  factors.push({ label:'Onset predicted within 3 years', pip:'low',  pts:6  }); }
+    }
+  } else {
+    if (onset !== null) {
+      if (onset <= 6)       { score += 25; factors.push({ label:'Very early onset (≤6 yrs)', pip:'high', pts:25 }); }
+      else if (onset <= 8)  { score += 15; factors.push({ label:'Early onset (≤8 yrs)',      pip:'high', pts:15 }); }
+      else if (onset <= 10) { score += 8;  factors.push({ label:'Onset ≤10 yrs',             pip:'mod',  pts:8  }); }
+    }
+    if (rx !== null) {
+      if (rx <= -5)      { score += 22; factors.push({ label:`High myopia (${rx}D)`,     pip:'high', pts:22 }); }
+      else if (rx <= -3) { score += 14; factors.push({ label:`Moderate myopia (${rx}D)`, pip:'mod',  pts:14 }); }
+      else if (rx <= -1) { score += 7;  factors.push({ label:`Low myopia (${rx}D)`,      pip:'low',  pts:7  }); }
+    }
+    if (prog && prog >= 0.75) { score += 15; factors.push({ label:`Rapid progression (${prog}D/yr)`, pip:'high', pts:15 }); }
+  }
+
+  if (al !== null) {
+    const normAL = 22.0 + (age - 5) * 0.1;
+    const excess = al - normAL;
+    if (excess > 1.5)      { score += 18; factors.push({ label:`AL ${al}mm (>1.5mm above norm)`, pip:'high', pts:18 }); }
+    else if (excess > 0.8) { score += 10; factors.push({ label:`AL ${al}mm (elongated for age)`, pip:'mod',  pts:10 }); }
+  }
+
+  if (parents == 2)      { score += 20; factors.push({ label:'Both parents myopic', pip:'high', pts:20 }); }
+  else if (parents == 1) { score += 10; factors.push({ label:'One parent myopic',   pip:'mod',  pts:10 }); }
+  if (parent_rx !== null && parent_rx <= -4) { score += 8; factors.push({ label:`Parental high myopia (${parent_rx}D)`, pip:'high', pts:8 }); }
+
+  const em = ETH_MULT[ethnicity];
+  if (em >= 1.4)      { score += 12; factors.push({ label:'East Asian ancestry (elevated risk)',      pip:'high', pts:12 }); }
+  else if (em >= 1.1) { score += 6;  factors.push({ label:'South Asian / Hispanic ancestry',          pip:'mod',  pts:6  }); }
+  else if (em < 0.9)  { score -= 5;  factors.push({ label:'African ancestry (lower population rate)', pip:'low',  pts:-5 }); }
+
+  if (outdoor == 0)      { score += 10; factors.push({ label:'<1 hr/day outdoors',              pip:'high', pts:10 }); }
+  else if (outdoor == 1) { score += 4;  factors.push({ label:'1–2 hrs/day outdoors',            pip:'mod',  pts:4  }); }
+  else                   { score -= 5;  factors.push({ label:'2+ hrs/day outdoors (protective)', pip:'low',  pts:-5 }); }
+
+  if (nearwork == 2)      { score += 8; factors.push({ label:'4+ hrs near work/screens per day', pip:'mod', pts:8 }); }
+  else if (nearwork == 1) { score += 4; factors.push({ label:'2–4 hrs near work/screens per day',pip:'low', pts:4 }); }
+
+  if (document.getElementById('rf_premature').checked)    { score += 5; factors.push({ label:'Premature birth history',             pip:'mod', pts:5 }); }
+  if (document.getElementById('rf_urban').checked)        { score += 4; factors.push({ label:'Urban environment',                   pip:'mod', pts:4 }); }
+  if (document.getElementById('rf_asian_school').checked) { score += 5; factors.push({ label:'High academic load / limited breaks', pip:'mod', pts:5 }); }
+  if (document.getElementById('rf_atopy').checked)        { score += 3; factors.push({ label:'Atopic conditions (eye rubbing)',      pip:'low', pts:3 }); }
+
+  return { score: Math.max(0, Math.min(100, score)), factors };
+}
+
+// ── BV clinical notes ─────────────────────────────────────────────────────
+function getBVNote(aclag, phoria, ai, ci) {
+  const notes = [];
+  if (aclag === '2') notes.push('<strong>Significant accommodative lag:</strong> optical defocus-based intervention preferred (Ortho-K, MiSight, Stellest) over atropine monotherapy.');
+  else if (aclag === '1') notes.push('<strong>Mild accommodative lag:</strong> monitor; defocus-based optical intervention may be beneficial.');
+  if (phoria === 'eso') notes.push('<strong>Esophoria at near:</strong> consider optical intervention to reduce accommodative demand; atropine monotherapy may not address the binocular driver.');
+  if (phoria === 'exo') notes.push('<strong>Exophoria at near:</strong> associated with slower progression in some studies; monitor accommodative function.');
+  if (ai) notes.push('<strong>Accommodative insufficiency:</strong> defocus-based optical correction preferred; ensure adequate accommodative support.');
+  if (ci && aclag === '2') notes.push('<strong>CI + significant lag:</strong> vision therapy referral may be warranted alongside myopia control intervention.');
+  else if (ci) notes.push('<strong>Convergence insufficiency:</strong> consider vision therapy evaluation alongside myopia management.');
+  return notes.join('<br>');
+}
+
+// ── Projection builder ────────────────────────────────────────────────────
+function buildProjection(inputs) {
+  const { age, rx, prog, ethnicity, intervention, isPreMyope, predictedOnset } = inputs;
+  const em = ETH_MULT[ethnicity];
+  const intEffect = INT_EFFECT[intervention];
+  const maxAge = 22;
+  const ages = [], untreated = [], treated = [];
+
+  function annualRate(a) {
+    return (prog && !isPreMyope) ? prog * em : baseProgRate(a) * em;
+  }
+
+  if (isPreMyope) {
+    const onsetAge = predictedOnset || (age + 3);
+    const startPlus = (rx !== null) ? rx : 0.75;
+    const steps = Math.max(onsetAge - age, 1);
+    const annualDrop = startPlus / steps;
+    let simPlus = startPlus;
+    for (let a = age; a <= onsetAge; a++) {
+      ages.push(a);
+      const v = +Math.max(simPlus, 0).toFixed(2);
+      untreated.push(v); treated.push(v);
+      simPlus -= annualDrop;
+    }
+    let rxU = 0, rxT = 0;
+    for (let a = onsetAge; a < maxAge; a++) {
+      const r = annualRate(a);
+      rxU = Math.max(rxU - r, -22);
+      rxT = Math.max(rxT - r * (1 - intEffect), -22);
+      ages.push(a + 1);
+      untreated.push(+rxU.toFixed(2));
+      treated.push(+rxT.toFixed(2));
+    }
+  } else {
+    let rxU = rx || 0, rxT = rx || 0;
+    ages.push(age); untreated.push(+rxU.toFixed(2)); treated.push(+rxT.toFixed(2));
+    for (let a = age; a < maxAge; a++) {
+      const r = annualRate(a);
+      rxU = Math.max(rxU - r, -22);
+      rxT = Math.max(rxT - r * (1 - intEffect), -22);
+      ages.push(a + 1);
+      untreated.push(+rxU.toFixed(2));
+      treated.push(+rxT.toFixed(2));
+    }
+  }
+  return { ages, untreated, treated };
+}
+
+// ── Find where untreated curve crosses 0 (for pre-myopes) ────────────────
+
+
+// ── Chart ─────────────────────────────────────────────────────────────────
+let myChart = null;
+function renderChart(proj, inputs) {
+  const { age, isPreMyope, intervention, rx } = inputs;
+  const ctx = document.getElementById('myChart');
+  if (myChart) myChart.destroy();
+
+  const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const gridColor  = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(26,39,68,0.07)';
+  const labelColor = isDark ? '#8890aa' : '#6b7494';
+  const intEffect  = INT_EFFECT[intervention];
+
+
+
+
+  const yMin = isPreMyope ? -10 : -14;
+  const yMax = isPreMyope ? Math.max((rx !== null ? rx : 0.75) + 0.5, 1.5) : 1.0;
+
+  myChart = new Chart(ctx, {
+    type: 'line',
+
+    data: {
+      labels: proj.ages,
+      datasets: [
+        {
+          label: 'Untreated',
+          data: proj.untreated,
+          borderColor: '#2a7d6e',
+          backgroundColor: 'rgba(42,125,110,0.06)',
+          borderWidth: 2.5,
+          pointRadius: proj.ages.map((_, i) => i === 0 ? 5 : 0),
+          pointHoverRadius: 5,
+          pointBackgroundColor: '#2a7d6e',
+          tension: 0.3,
+          fill: true,
+        },
+        {
+          label: 'Treated',
+          data: intEffect > 0 ? proj.treated : [],
+          borderColor: '#e8a245',
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          tension: 0.3,
+          fill: false,
+        },
+        {
+          label: 'High myopia',
+          data: proj.ages.map(() => -6.0),
+          borderColor: '#c94040',
+          borderWidth: 1.2,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          fill: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: items => `Age ${items[0].label}`,
+            label: ctx => {
+              if (ctx.dataset.label === 'High myopia') return null;
+              const v = ctx.parsed.y;
+              const str = v >= 0 ? `+${v.toFixed(2)}D` : `${v.toFixed(2)}D`;
+              return `${ctx.dataset.label}: ${str}`;
+            },
+
+          },
+          filter: item => item.dataset.label !== 'High myopia'
+        }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: 'Age (years)', color: labelColor, font: { size: 11 } },
+          grid: { color: gridColor },
+          ticks: {
+            color: labelColor, font: { size: 10 },
+            autoSkip: false,
+            maxRotation: 0,
+            callback: (val, i) => proj.ages[i]
+          }
+        },
+        y: {
+          title: { display: true, text: 'Spherical Rx (D)', color: labelColor, font: { size: 11 } },
+          grid: { color: gridColor },
+          ticks: {
+            color: labelColor,
+            font: { size: 10 },
+            stepSize: 0.5,
+            callback: v => {
+              // Only label whole-number and 0.5 steps, but show every 0.5
+              return v.toFixed(1) + 'D';
+            }
+          },
+          reverse: true,
+          min: yMin,
+          max: yMax,
+        }
+      }
+    }
+  });
+
+  // Update legend
+  document.getElementById('legend-treated-wrap').style.display = intEffect > 0 ? 'flex' : 'none';
+  document.getElementById('legend-onset-wrap').style.display = 'none';
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────
+function renderTable(proj, inputs) {
+  const tbody = document.getElementById('proj-tbody');
+  tbody.innerHTML = '';
+  const { age, intervention, isPreMyope, predictedOnset } = inputs;
+  const intEffect = INT_EFFECT[intervention];
+  const crossingAge = null;
+
+  proj.ages.forEach((a, i) => {
+    // Show every year
+    const rxU = proj.untreated[i];
+    const rxT = proj.treated[i];
+    const alEst = rxU < 0 ? (24.2 + Math.abs(rxU) * 0.35).toFixed(2) + ' mm' : '—';
+
+    let riskLabel = 'Pre-myopic', riskStyle = 'background:#fff8e8;color:#7a5000;';
+    if (rxU <= -6)      { riskLabel = 'High myopia'; riskStyle = 'background:#f0e0ff;color:#6a20a0;'; }
+    else if (rxU <= -3) { riskLabel = 'Moderate';    riskStyle = 'background:#fff3e0;color:#a05c00;'; }
+    else if (rxU <= -1) { riskLabel = 'Low myopia';  riskStyle = 'background:#fce8e8;color:#a02020;'; }
+    else if (rxU <= 0)  { riskLabel = 'Emmetrope';   riskStyle = 'background:#e8f5f0;color:#1d7a55;'; }
+
+    const rxUStr = rxU >= 0 ? `+${rxU.toFixed(2)}D` : `${rxU.toFixed(2)}D`;
+    const rxTStr = intEffect > 0 && Math.abs(rxT - rxU) > 0.01
+      ? (rxT >= 0 ? `+${rxT.toFixed(2)}D` : `${rxT.toFixed(2)}D`) : '—';
+
+    const tr = document.createElement('tr');
+    if (a === age && !isPreMyope) tr.className = 'current-row';
+    if (a === crossingAge) tr.className = 'onset-row';
+
+    const onsetMark = a === crossingAge
+      ? `<span style="color:#7a5000;font-size:10px;"> ← est. onset</span>` : '';
+
+    tr.innerHTML = `
+      <td>${a}${onsetMark}</td>
+      <td class="rx-val">${rxUStr}</td>
+      <td class="rx-val">${rxTStr}</td>
+      <td>${alEst}</td>
+      <td><span class="risk-pill" style="${riskStyle}">${riskLabel}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── Risk display ──────────────────────────────────────────────────────────
+function renderRisk(score, factors, inputs) {
+  const { isPreMyope, predictedOnset, age, rx, intervention } = inputs;
+  document.getElementById('risk-score-num').textContent = score;
+  document.getElementById('risk-label-text').textContent = isPreMyope ? 'Onset risk score' : 'Progression risk score';
+
+  const bar = document.getElementById('risk-bar');
+  const badge = document.getElementById('risk-tier-badge');
+  bar.style.width = score + '%';
+  badge.className = 'risk-tier';
+
+  let tierWord = '', tierClass = '';
+  if (score < 25)      { bar.style.background = '#2a7d6e'; tierClass = 'tier-low';   tierWord = 'Low';       }
+  else if (score < 50) { bar.style.background = '#e8a245'; tierClass = 'tier-mod';   tierWord = 'Moderate';  }
+  else if (score < 75) { bar.style.background = '#c94040'; tierClass = 'tier-high';  tierWord = 'High';      }
+  else                 { bar.style.background = '#7a20a0'; tierClass = 'tier-vhigh'; tierWord = 'Very High'; }
+  badge.classList.add(tierClass);
+  badge.textContent = tierWord + ' Risk';
+
+  // Onset box
+  const box = document.getElementById('onset-box');
+  if (isPreMyope && predictedOnset) {
+    box.classList.add('show');
+    document.getElementById('onset-box-val').textContent = `Age ${predictedOnset}`;
+    const yrs = predictedOnset - age;
+    document.getElementById('onset-box-sub').textContent = yrs <= 0
+      ? 'Myopia onset likely imminent — monitor closely'
+      : `Estimated ${yrs} year${yrs > 1 ? 's' : ''} from now, based on current risk profile`;
+  } else {
+    box.classList.remove('show');
+  }
+
+  // Risk factors breakdown
+  document.getElementById('risk-factors-list').innerHTML = factors.map(f =>
+    `<div class="risk-factor-item"><div class="pip pip-${f.pip}"></div><span>${f.label} <span style="color:var(--light)">(${f.pts > 0 ? '+' : ''}${f.pts})</span></span></div>`
+  ).join('');
+}
+
+// ── Patient mode UI updates ───────────────────────────────────────────────
+function updatePatientModeUI() {
+  const inputs = window._lastInputs;
+  if (!inputs) return;
+  const { isPreMyope, predictedOnset, age, rx, ethnicity, parents, intervention } = inputs;
+  const proj = window._lastProj;
+
+  // Plain language risk
+  const score = window._lastScore;
+  let tierWord = score < 25 ? 'low' : score < 50 ? 'moderate' : score < 75 ? 'high' : 'very high';
+  const plain = document.getElementById('risk-plain');
+  const riskFactorsEl = document.getElementById('risk-factors-list');
+
+  if (patientMode) {
+    document.getElementById('risk-score-num').style.display = 'none';
+    plain.style.display = 'block';
+    riskFactorsEl.style.display = 'none';
+    const rxAt18 = proj ? proj.untreated[proj.ages.indexOf(18)] : null;
+    const rxAt18Str = rxAt18 !== undefined && rxAt18 !== null
+      ? (rxAt18 >= 0 ? `+${rxAt18.toFixed(2)}` : rxAt18.toFixed(2)) + 'D' : '';
+    plain.innerHTML = isPreMyope
+      ? `Based on current measurements, your child has a <strong>${tierWord} risk</strong> of developing myopia${predictedOnset ? ` around age <strong>${predictedOnset}</strong>` : ''}. Without intervention, their prescription could reach approximately <strong>${rxAt18Str}</strong> by age 18.`
+      : `Based on current measurements, your child has a <strong>${tierWord} risk</strong> of significant myopia progression. Without intervention, their prescription could reach approximately <strong>${rxAt18Str}</strong> by age 18.`;
+  } else {
+    document.getElementById('risk-score-num').style.display = '';
+    plain.style.display = 'none';
+    riskFactorsEl.style.display = '';
+  }
+
+  // Plain outcome (patient mode below onset box)
+  const po = document.getElementById('plain-outcome');
+  if (patientMode && intervention !== 'none' && proj) {
+    po.classList.add('show');
+    const rxAt18U = proj.untreated[proj.ages.indexOf(18)];
+    const rxAt18T = proj.treated[proj.ages.indexOf(18)];
+    if (rxAt18U !== undefined && rxAt18T !== undefined) {
+      const uStr = rxAt18U >= 0 ? `+${rxAt18U.toFixed(2)}D` : `${rxAt18U.toFixed(2)}D`;
+      const tStr = rxAt18T >= 0 ? `+${rxAt18T.toFixed(2)}D` : `${rxAt18T.toFixed(2)}D`;
+      po.textContent = `With ${INT_LABELS[intervention].replace(' †','')}, we estimate their prescription at age 18 to be around ${tStr} — compared to ${uStr} without any treatment.`;
+    }
+  } else {
+    po.classList.remove('show');
+  }
+
+  // What we can do
+  const wcd = document.getElementById('what-we-can-do');
+  const items = [];
+  if (document.getElementById('outdoor').value == 0 || document.getElementById('outdoor').value == 1) {
+    items.push({ icon:'☀', title:'Increase outdoor time', body:'Aim for at least 2 hours per day outdoors. This is one of the most consistently protective factors against myopia development and progression.' });
+  }
+  if (intervention !== 'none') {
+    items.push({ icon:'👁', title:INT_LABELS[intervention].replace(' †',''), body:INT_PLAIN[intervention] + ' Studies suggest this can slow your child\'s prescription growth by roughly half compared to no treatment.' });
+  } else {
+    items.push({ icon:'👁', title:'Consider myopia control', body:'Several treatments have been shown to significantly slow myopia progression in children. Ask your optometrist which option is best suited for your child.' });
+  }
+  items.push({ icon:'📅', title:'Regular monitoring', body:'Children with myopia or high risk should be seen every 6 months to track axial length and prescription changes and adjust treatment if needed.' });
+  wcd.innerHTML = items.map(it => `
+    <div class="wcd-item">
+      <div class="wcd-icon">${it.icon}</div>
+      <div class="wcd-text"><strong>${it.title}</strong>${it.body}</div>
+    </div>`).join('');
+
+  // Summary strip
+  const strip = document.getElementById('strip-inner');
+  if (patientMode) {
+    const rxDisp = rx !== null ? (rx >= 0 ? `+${rx}D` : `${rx}D`) : '—';
+    const parentMap = { '0':'No parental myopia', '1':'One myopic parent', '2':'Both parents myopic' };
+    strip.innerHTML = [
+      `<div class="strip-chip">Age <strong>${age}</strong></div>`,
+      `<div class="strip-chip">Rx <strong>${rxDisp}</strong> (worse eye)</div>`,
+      `<div class="strip-chip">Ethnicity <strong>${ETH_PLAIN[ethnicity]}</strong></div>`,
+      `<div class="strip-chip"><strong>${parentMap[parents]}</strong></div>`,
+      `<div class="strip-chip">Intervention <strong>${INT_LABELS[intervention].replace(' †','')}</strong></div>`,
+    ].join('');
+  }
+}
+
+// ── Main calc ─────────────────────────────────────────────────────────────
+function calc() {
+  const age        = parseInt(document.getElementById('age').value) || 8;
+  const sex        = document.getElementById('sex').value;
+  const ethnicity  = document.getElementById('ethnicity').value;
+  const rxRaw      = document.getElementById('rx').value;
+  const rx         = rxRaw !== '' ? parseFloat(rxRaw) : null;
+  const alRaw      = document.getElementById('al').value;
+  const al         = alRaw ? parseFloat(alRaw) : null;
+  const onset      = document.getElementById('onset').value ? parseInt(document.getElementById('onset').value) : null;
+  const prog       = document.getElementById('prog').value ? parseFloat(document.getElementById('prog').value) : null;
+  const parents    = parseInt(document.getElementById('parents').value);
+  const parent_rx  = document.getElementById('parent_rx').value ? parseFloat(document.getElementById('parent_rx').value) : null;
+  const outdoor    = parseInt(document.getElementById('outdoor').value);
+  const nearwork   = parseInt(document.getElementById('nearwork').value);
+  const intervention = document.getElementById('intervention').value;
+  const bv_aclag   = document.getElementById('bv_aclag').value;
+  const bv_phoria  = document.getElementById('bv_phoria').value;
+  const bv_ai      = document.getElementById('bv_ai').checked;
+  const bv_ci      = document.getElementById('bv_ci').checked;
+
+  const isPreMyope = rx === null || rx >= 0;
+
+  // Status banner
+  const banner = document.getElementById('status-banner');
+  banner.className = 'status-banner show ' + (isPreMyope ? 'pre' : 'myo');
+  banner.textContent = isPreMyope ? 'Pre-myopic — onset risk mode' : 'Myopic — progression tracking mode';
+
+  // Int note
+  document.getElementById('int-note').style.display = (isPreMyope && intervention !== 'none') ? 'block' : 'none';
+
+  // BV note
+  const bvNote = document.getElementById('bv-note');
+  const bvText = getBVNote(bv_aclag, bv_phoria, bv_ai, bv_ci);
+  if (bvText) { bvNote.classList.add('show'); bvNote.innerHTML = bvText; }
+  else { bvNote.classList.remove('show'); bvNote.innerHTML = ''; }
+
+  const predictedOnset = isPreMyope ? predictOnset(age, rx, al, ethnicity, parents, outdoor) : null;
+  const inputs = { age, sex, ethnicity, rx, al, onset, prog, parents, parent_rx,
+                   outdoor, nearwork, intervention, isPreMyope, predictedOnset };
+
+  const { score, factors } = computeRisk(inputs);
+  renderRisk(score, factors, inputs);
+
+  const proj = buildProjection(inputs);
+  window._lastInputs = inputs;
+  window._lastProj = proj;
+  window._lastScore = score;
+
+  renderChart(proj, inputs);
+  renderTable(proj, inputs);
+
+  // Legend label
+  document.getElementById('legend-treated-label').textContent = INT_LABELS[intervention];
+  document.getElementById('chart-title').textContent = isPreMyope
+    ? 'Estimated Rx — onset projection' : 'Estimated Rx progression';
+
+  document.getElementById('print-date').textContent =
+    new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+
+  updatePatientModeUI();
+}
+
+function resetForm() {
+  ['rx','al','onset','prog','parent_rx'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('age').value = 8;
+  document.getElementById('sex').value = 'F';
+  document.getElementById('ethnicity').value = 'east_asian';
+  document.getElementById('parents').value = 0;
+  document.getElementById('outdoor').value = 2;
+  document.getElementById('nearwork').value = 1;
+  document.getElementById('intervention').value = 'none';
+  document.getElementById('bv_aclag').value = '0';
+  document.getElementById('bv_phoria').value = 'ortho';
+  ['rf_premature','rf_urban','rf_asian_school','rf_atopy','bv_ai','bv_ci']
+    .forEach(id => document.getElementById(id).checked = false);
+  calc();
+}
+
+calc();
+</script>
+
+<!-- ── PRINT PAGE ─────────────────────────────────────────────────── -->
+<div class="print-page" id="print-page">
+<style>
+  .print-page { width:100%; }
+  .pp-header { background:#1a2744; color:white; padding:7px 14px; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .pp-header-left .pp-logo { font-size:8px; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.5); margin-bottom:1px; }
+  .pp-header-left h2 { font-size:13px; font-weight:400; font-family:'DM Serif Display',serif; color:white; }
+  .pp-header-right { font-size:8px; color:rgba(255,255,255,0.6); text-align:right; line-height:1.5; }
+
+  .pp-strip { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:7px; }
+  .pp-chip { background:white; border:1px solid #d8d6d0; border-radius:20px; padding:2px 8px; font-size:8px; color:#6b7494; }
+  .pp-chip strong { color:#1a2744; font-weight:500; }
+
+  .pp-body { display:grid; grid-template-columns:160px 1fr; gap:8px; margin-bottom:8px; }
+
+  .pp-risk { border:1px solid #e0deda; border-radius:6px; padding:8px 10px; }
+  .pp-risk-label { font-size:7px; font-weight:500; color:#6b7494; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:3px; }
+  .pp-risk-score { font-family:'DM Serif Display',serif; font-size:30px; line-height:1; color:#1a2744; }
+  .pp-risk-tier { display:inline-block; font-size:8.5px; font-weight:600; padding:1px 7px; border-radius:8px; margin-top:2px; margin-bottom:5px; }
+  .pp-bar-track { height:4px; background:#e8e8e8; border-radius:2px; overflow:hidden; margin-bottom:2px; }
+  .pp-bar-fill { height:100%; border-radius:2px; }
+  .pp-bar-labels { display:flex; justify-content:space-between; font-size:6.5px; color:#9aa0b8; margin-bottom:6px; }
+  .pp-onset { background:white; border:1px solid #d0b060; border-radius:5px; padding:5px 7px; margin-bottom:6px; }
+  .pp-onset-label { font-size:7px; font-weight:500; color:#7a5000; text-transform:uppercase; letter-spacing:0.06em; }
+  .pp-onset-val { font-family:'DM Serif Display',serif; font-size:14px; color:#5a3800; }
+  .pp-onset-sub { font-size:7px; color:#8a6020; }
+  .pp-plain { font-size:8px; color:#1a2744; line-height:1.5; background:white; }
+
+  .pp-right { border:1px solid #e0deda; border-radius:6px; padding:8px 10px; }
+  .pp-section-title { font-size:7.5px; font-weight:500; color:#6b7494; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:5px; border-bottom:1px solid #e0e0e0; padding-bottom:3px; }
+
+  .pp-table { width:100%; border-collapse:collapse; font-size:7.5px; }
+  .pp-table th { text-align:left; font-size:7px; color:#6b7494; font-weight:500; text-transform:uppercase; letter-spacing:0.05em; padding:3px 5px; border-bottom:1px solid #e0deda; }
+  .pp-table td { padding:2px 5px; border-bottom:1px solid #e8e8e8; color:#1a2744; }
+  .pp-table tr:last-child td { border-bottom:none; }
+  .pp-table .pp-current td { background:white; font-weight:600; border-bottom:1px solid #2a7d6e !important; }
+  .pp-table .pp-onset-row td { background:white; font-weight:600; }
+
+  .pp-wcd { margin-top:8px; }
+  .pp-wcd-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:4px; }
+  .pp-wcd-item { border:1px solid #d8d8d8; border-radius:5px; padding:6px 8px; background:white; }
+  .pp-wcd-title { font-size:8px; font-weight:600; color:#1a2744; margin-bottom:2px; }
+  .pp-wcd-body { font-size:7px; color:#6b7494; line-height:1.4; }
+
+  .pp-footer { font-size:7px; color:#9aa0b8; border-top:1px solid #e0e0e0; padding-top:5px; margin-top:7px; display:flex; justify-content:space-between; }
+  .pp-disclaimer { font-size:7px; color:#9aa0b8; margin-top:5px; line-height:1.45; }
+</style>
+
+<div class="pp-header">
+  <div class="pp-header-left">
+    <div class="pp-logo">The Spark Optometry</div>
+    <h2>Myopia Risk Report</h2>
+  </div>
+  <div class="pp-header-right" id="pp-header-right"></div>
+</div>
+
+<div class="pp-strip" id="pp-strip"></div>
+
+<div class="pp-body">
+  <div class="pp-risk" id="pp-risk"></div>
+  <div class="pp-right">
+    <div class="pp-section-title">Rx trajectory</div>
+    <div id="pp-chart-wrap" style="margin-bottom:10px;"></div>
+    <div class="pp-section-title">Prescription projection by age</div>
+    <table class="pp-table" id="pp-table">
+      <thead>
+        <tr>
+          <th>Age</th>
+          <th>Rx — untreated</th>
+          <th>Rx — with intervention</th>
+        </tr>
+      </thead>
+      <tbody id="pp-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="pp-wcd" id="pp-wcd"></div>
+
+<div class="pp-disclaimer" id="pp-disclaimer"></div>
+<div class="pp-footer" id="pp-footer"></div>
+</div>
+<!-- ── END PRINT PAGE ── -->
+
+</body>
+</html>
